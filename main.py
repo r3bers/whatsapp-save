@@ -40,7 +40,7 @@ if __name__ == '__main__':
                 print(e.msg)
                 sleep(0.5)
         if deleted:
-            print(datetime.now().__str__() + '  - Deleted: ' + ', '.join([basename(del_file) for del_file in deleted]))
+            print(datetime.now().__str__() + ' - Deleted: ' + ', '.join([basename(del_file) for del_file in deleted]))
         # if unchanged:
         # print('.', end='')
         old_files = new_files.copy()
