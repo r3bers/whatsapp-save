@@ -3,44 +3,66 @@ from time import sleep
 from shutil import copy
 from ntpath import basename
 from datetime import datetime
+from platform import system
 
 
-def compare_list(old, new):
-    new_set = set(new)
-    old_set = set(old)
-    return new_set - old_set, old_set - new_set, new_set & old_set
+class WhatsAppMonitor:
+    def __init__(self):
+        self.watch_path = '.'
+        self.copy_path = 'WhatsApp.SAVE'
+        current_system = system().lower()
+        if current_system == 'windows':
+            self.watch_path = path.join(environ['LOCALAPPDATA'], 'Packages')
+            filtered = [folder for folder in listdir(self.watch_path) if "WhatsAppDesktop" in folder]
+            if len(filtered) != 1:
+                self.log('Error', ["Can't find WhatsAppDesktop folder in " + self.watch_path +
+                                   " or it to many folders there. Resolve problem manually."])
+                exit(1)
+            self.watch_path = path.join(self.watch_path, filtered[0], 'LocalState', 'shared', 'transfers')
+            # noinspection SpellCheckingInspection
+            self.copy_path = path.join(environ['HOMEPATH'], self.copy_path)
+        if current_system == 'linux':
+            if 'ANDROID_ROOT' in environ:
+                self.watch_path = path.join(environ['EXTERNAL_STORAGE'],
+                                            'Android', 'media', 'com.whatsapp', 'WhatsApp', 'Media')
+                self.copy_path = path.join(environ['EXTERNAL_STORAGE'], self.copy_path)
+            else:
+                self.log('Exit program', ['because it is Linux not Android'])
+                exit(1)
+        if not path.exists(self.copy_path):
+            makedirs(self.copy_path)
+        self.old_files = self.new_files = [path.join(dir_path, file) for (dir_path, dir_names, filenames) in
+                                           walk(self.watch_path) for file in filenames]
+
+    def compare_list(self):
+        new_set = set(self.new_files)
+        old_set = set(self.old_files)
+        return new_set - old_set, old_set - new_set  # , new_set & old_set no need unchanged
+
+    @staticmethod
+    def log(log_operation, log_list):
+        print(
+            datetime.now().__str__() +
+            ' - ' + log_operation + ': ' +
+            ', '.join([basename(add_file) for add_file in log_list]))
+
+    def run(self):
+        while True:
+            sleep(0.5)
+            self.new_files = [path.join(dir_path, file) for (dir_path, dir_names, filenames) in
+                              walk(self.watch_path) for file in filenames]
+            added, deleted = self.compare_list()
+            if added:
+                self.log('Added', added)
+                try:
+                    [copy(file, path.join(self.copy_path, basename(file))) for file in added]
+                except IOError as e:
+                    self.log('Copy Error', [e.msg])
+                    sleep(0.5)
+            if deleted:
+                self.log('Deleted', deleted)
+            self.old_files = self.new_files.copy()
 
 
 if __name__ == '__main__':
-    save_dir = 'WhatsApp.SAVE'
-    watch_path = path.join(environ['LOCALAPPDATA'], 'Packages')
-    filtered = [folder for folder in listdir(watch_path) if "WhatsAppDesktop" in folder]
-    if len(filtered) != 1:
-        print("Can't find WhatsAppDesktop folder in " + watch_path +
-              " or it to many folders there. Resolve problem manually.")
-        exit(1)
-
-    watch_path = path.join(watch_path, filtered[0], 'LocalState', 'shared', 'transfers')
-    # noinspection SpellCheckingInspection
-    copy_path = path.join(environ['HOMEPATH'], save_dir)
-    if not path.exists(copy_path):
-        makedirs(copy_path)
-    old_files = [path.join(dir_path, f) for (dir_path, dir_names, filenames) in walk(watch_path) for f in filenames]
-    while True:
-        sleep(0.5)
-        new_files = [path.join(dir_path, f) for (dir_path, dir_names, filenames) in walk(watch_path) for f in filenames]
-        added, deleted, unchanged = compare_list(old_files, new_files)
-        if added:
-            print(datetime.now().__str__() + ' - Added: ' + ', '.join([basename(add_file) for add_file in added]))
-            try:
-                [copy(each_file, path.join(copy_path, basename(each_file))) for each_file in added]
-            # include the file to be deleted in array
-            except IOError as e:
-                print('Copy Error: ', end='')
-                print(e.msg)
-                sleep(0.5)
-        if deleted:
-            print(datetime.now().__str__() + ' - Deleted: ' + ', '.join([basename(del_file) for del_file in deleted]))
-        # if unchanged:
-        # print('.', end='')
-        old_files = new_files.copy()
+    WhatsAppMonitor().run()
