@@ -54,11 +54,11 @@ class WhatsAppMonitor:
             added, deleted = self.compare_list()
             if added:
                 self.log('Added', added)
-                try:
-                    [copy(file, path.join(self.copy_path, basename(file))) for file in added]
-                except IOError as e:
-                    self.log('Copy Error', [e.msg])
-                    sleep(0.5)
+                for file in added:
+                    try:
+                        copy(file, path.join(self.copy_path, basename(file)))
+                    except IOError as e:
+                        self.log('Copy Error', [e.msg])
             if deleted:
                 self.log('Deleted', deleted)
             self.old_files = self.new_files.copy()
